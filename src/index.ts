@@ -26,6 +26,10 @@ function* WeekdayParser() {
 
     return { weekday, repeats }
   }
+
+  yield whitespaceOptional;
+  yield optional(/^on\b/);
+  yield whitespaceOptional;
   
   return { repeats };
 }
@@ -99,15 +103,20 @@ export interface Result {
 }
 
 function* NaturalDateParser(): ParseGenerator<Result> {
-  yield whitespaceOptional;
-  const weekSpan: any = yield optional(WeekdaysParser);
-  yield whitespaceOptional;
+  let day = yield has(/^every day\b/);
+
+  let weekSpan: any;
+  if (!day) {
+    yield whitespaceOptional;
+    weekSpan = yield optional(WeekdaysParser);
+    yield whitespaceOptional;
+  }
   
   yield whitespaceOptional;
   const timespan: any = yield optional(TimespanParser);    
   yield whitespaceOptional;
 
-  return { repeats: weekSpan?.repeats ? 'weekly' : undefined, weekdays: weekSpan?.weekdays, ...timespan };
+  return { repeats: day ? 'daily' : weekSpan?.repeats ? 'weekly' : undefined, weekdays: weekSpan?.weekdays, ...timespan };
 }
 
 export function parse(input: string): Result | null {

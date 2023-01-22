@@ -30,6 +30,12 @@ describe("parse()", () => {
     ['Mondays at 9:30pm to 10:30pm', { repeats: 'weekly', weekdays: new Set(['monday']), startTime: { hours: 21, minutes: 30 }, endTime: { hours: 22, minutes: 30 } }],
     ['Fridays from 11:15am to 12:30pm', { repeats: 'weekly', weekdays: new Set(['friday']), startTime: { hours: 11, minutes: 15 }, endTime: { hours: 12, minutes: 30 } }],
     ['Fridays from 11:15am to 12:00am', { repeats: 'weekly', weekdays: new Set(['friday']), startTime: { hours: 11, minutes: 15 }, endTime: { hours: 24, minutes: 0 } }],
+    ['Monday 9:30', { weekdays: new Set(['monday']), startTime: { hours: 9, minutes: 30 } }],
+    ['9:30', { startTime: { hours: 9, minutes: 30 } }],
+    ['every week 9:30', { repeats: 'weekly', weekdays: new Set([]), startTime: { hours: 9, minutes: 30 } }],
+    ['every week Monday, Wednesday', { repeats: 'weekly', weekdays: new Set(['monday', 'wednesday']) }],
+    ['every week on Monday, Wednesday', { repeats: 'weekly', weekdays: new Set(['monday', 'wednesday']) }],
+    ['every day 9:30', { repeats: 'daily', startTime: { hours: 9, minutes: 30 } }],
   ])('%o', (input: string, output) => {
     expect(parse(input)).toEqual(output);
   });

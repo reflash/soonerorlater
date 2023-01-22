@@ -13,13 +13,21 @@ type Weekday = (typeof weekdayChoices)[0 | 1 | 2 | 3 | 4 | 5 | 6];
 function* WeekdayParser() {
   let repeats: boolean = yield has(/^every\b/);
   yield optional(/^next\b/);
-  
+
   yield whitespaceOptional;
+
+  let week = yield has(/^week\b/);
   
-  const weekday: Weekday = yield weekdayChoices;
-  repeats = repeats || (yield has(/^[s]\b/));
+  if (!week){
+    yield whitespaceOptional;
+    
+    const weekday: Weekday = yield weekdayChoices;
+    repeats = repeats || (yield has(/^[s]\b/));
+
+    return { weekday, repeats }
+  }
   
-  return { weekday, repeats };
+  return { repeats };
 }
 
 function* AnotherWeekdayParser() {
@@ -37,7 +45,8 @@ function* WeekdaysParser() {
   let result: { weekday: Weekday, repeats: boolean };
   result = yield WeekdayParser;
   
-  weekdays.add(result.weekday);
+  if (result.weekday)
+    weekdays.add(result.weekday);
   repeats = repeats || result.repeats;
   
   while (result = yield optional(AnotherWeekdayParser)) {
@@ -91,14 +100,14 @@ export interface Result {
 
 function* NaturalDateParser(): ParseGenerator<Result> {
   yield whitespaceOptional;
-  const { weekdays, repeats } = yield WeekdaysParser;
+  const weekSpan: any = yield optional(WeekdaysParser);
   yield whitespaceOptional;
   
   yield whitespaceOptional;
-  const timespan = yield optional(TimespanParser);    
+  const timespan: any = yield optional(TimespanParser);    
   yield whitespaceOptional;
 
-  return { repeats: repeats ? 'weekly' : undefined, weekdays, ...(timespan as any) };
+  return { repeats: weekSpan?.repeats ? 'weekly' : undefined, weekdays: weekSpan?.weekdays, ...timespan };
 }
 
 export function parse(input: string): Result | null {

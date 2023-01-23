@@ -36,6 +36,9 @@ describe("parse()", () => {
     ['every week Monday, Wednesday', { repeats: 'weekly', weekdays: new Set(['monday', 'wednesday']) }],
     ['every week on Monday, Wednesday', { repeats: 'weekly', weekdays: new Set(['monday', 'wednesday']) }],
     ['every day 9:30', { repeats: 'daily', startTime: { hours: 9, minutes: 30 } }],
+    ['every 2 days 9:30', { repeats: 'daily', interval: 2, startTime: { hours: 9, minutes: 30 } }],
+    ['every month 9:30', { repeats: 'monthly', startTime: { hours: 9, minutes: 30 } }],
+    ['every 4 months 9:30', { repeats: 'monthly', interval: 4, startTime: { hours: 9, minutes: 30 } }],
   ])('%o', (input: string, output) => {
     expect(parse(input)).toEqual(output);
   });

@@ -7,6 +7,25 @@ function* ParseInt() {
   return parseInt(stringValue, 10);
 }
 
+const repeatsChoices = Object.freeze(['day', 'week', 'month', 'year'] as const);
+type Repeat = (typeof repeatsChoices)[0 | 1 | 2 | 3 ];
+
+function* EveryParser() {
+  yield /^every\b/;
+  yield whitespaceOptional;
+
+  const interval = yield optional(ParseInt);
+
+  yield whitespaceOptional
+
+  const repeats: Repeat = yield repeatsChoices;
+  
+  if (interval)
+    yield /^s/;
+
+  return { interval, repeats };
+}
+
 const weekdayChoices = Object.freeze(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const);
 type Weekday = (typeof weekdayChoices)[0 | 1 | 2 | 3 | 4 | 5 | 6];
 
@@ -15,23 +34,13 @@ function* WeekdayParser() {
   yield optional(/^next\b/);
 
   yield whitespaceOptional;
-
-  let week = yield has(/^week\b/);
-  
-  if (!week){
-    yield whitespaceOptional;
-    
-    const weekday: Weekday = yield weekdayChoices;
-    repeats = repeats || (yield has(/^[s]\b/));
-
-    return { weekday, repeats }
-  }
-
-  yield whitespaceOptional;
   yield optional(/^on\b/);
   yield whitespaceOptional;
   
-  return { repeats };
+  const weekday: Weekday = yield weekdayChoices;
+  repeats = repeats || (yield has(/^[s]\b/));
+
+  return { weekday, repeats };
 }
 
 function* AnotherWeekdayParser() {
@@ -102,11 +111,27 @@ export interface Result {
   endTime: { hours: number, minutes?: number };
 }
 
-function* NaturalDateParser(): ParseGenerator<Result> {
-  let day = yield has(/^every day\b/);
+function mapRepeat(repeat: Repeat) {
+  switch (repeat){
+    case "day":
+      return "daily";
+    case "week":
+      return "weekly";
+    case "month":
+      return "monthly";
+    case "year":
+      return "yearly"
+    default:
+      return null;
+  }
+}
 
+function* NaturalDateParser(): ParseGenerator<Result> {
+  const every: any = yield optional(EveryParser);
+  
   let weekSpan: any;
-  if (!day) {
+  
+  if (!every || every.repeats === "week") {
     yield whitespaceOptional;
     weekSpan = yield optional(WeekdaysParser);
     yield whitespaceOptional;
@@ -115,8 +140,21 @@ function* NaturalDateParser(): ParseGenerator<Result> {
   yield whitespaceOptional;
   const timespan: any = yield optional(TimespanParser);    
   yield whitespaceOptional;
+  
+  const repeats = every 
+    ? mapRepeat(every.repeats) 
+    : weekSpan?.repeats 
+      ? 'weekly' 
+      : undefined;
 
-  return { repeats: day ? 'daily' : weekSpan?.repeats ? 'weekly' : undefined, weekdays: weekSpan?.weekdays, ...timespan };
+  return { 
+    repeats,
+    interval: every?.interval,
+    weekdays: repeats === 'weekly' 
+      ? weekSpan?.weekdays || new Set([])
+      : weekSpan?.weekdays, 
+    ...timespan 
+  };
 }
 
 export function parse(input: string): Result | null {

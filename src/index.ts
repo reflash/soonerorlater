@@ -10,6 +10,9 @@ function* ParseInt() {
 const repeatsChoices = Object.freeze(['day', 'week', 'month', 'year'] as const);
 type Repeat = (typeof repeatsChoices)[0 | 1 | 2 | 3 ];
 
+const repeatingTypeChoices = Object.freeze(['daily', 'weekly', 'monthly', 'yearly'] as const);
+type RepeatType = (typeof repeatingTypeChoices)[0 | 1 | 2 | 3 ];
+
 function* EveryParser() {
   yield /^every\b/;
   yield whitespaceOptional;
@@ -111,7 +114,7 @@ export interface Result {
   endTime: { hours: number, minutes?: number };
 }
 
-function mapRepeat(repeat: Repeat) {
+function mapRepeat(repeat: Repeat): RepeatType | undefined {
   switch (repeat){
     case "day":
       return "daily";
@@ -122,37 +125,47 @@ function mapRepeat(repeat: Repeat) {
     case "year":
       return "yearly"
     default:
-      return null;
+      return undefined;
   }
 }
 
-function* NaturalDateParser(): ParseGenerator<Result> {
-  const every: any = yield optional(EveryParser);
+function* RepeatDateParser() {
+  let repeats: RepeatType | undefined  = yield optional(...repeatingTypeChoices);
+  let interval: number | undefined = undefined;
+
+  if (!repeats) {
+    const every: any = yield optional(EveryParser);
+    repeats = mapRepeat(every?.repeats);
+    interval = every?.interval;
+  }
   
   let weekSpan: any;
   
-  if (!every || every.repeats === "week") {
+  if (!repeats || repeats === "weekly") {
     yield whitespaceOptional;
     weekSpan = yield optional(WeekdaysParser);
     yield whitespaceOptional;
+
+    if (weekSpan)
+      repeats = repeats || (weekSpan.repeats ? 'weekly' : undefined);
   }
+
+  const weekdays = repeats === 'weekly' 
+    ? weekSpan?.weekdays || new Set([])
+    : weekSpan?.weekdays;
+
+  return { repeats, interval, weekdays }; 
+}
+
+function* NaturalDateParser(): ParseGenerator<Result> {  
+  const repeatData: any = yield RepeatDateParser;
   
   yield whitespaceOptional;
   const timespan: any = yield optional(TimespanParser);    
   yield whitespaceOptional;
-  
-  const repeats = every 
-    ? mapRepeat(every.repeats) 
-    : weekSpan?.repeats 
-      ? 'weekly' 
-      : undefined;
 
   return { 
-    repeats,
-    interval: every?.interval,
-    weekdays: repeats === 'weekly' 
-      ? weekSpan?.weekdays || new Set([])
-      : weekSpan?.weekdays, 
+    ...repeatData,
     ...timespan 
   };
 }

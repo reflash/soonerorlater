@@ -1,4 +1,4 @@
-import { has, optional, parse as parseWith, ParseGenerator, ParseYieldable } from 'yieldparser';
+import { has, isEnd, mustEnd, optional, parse as parseWith, ParseGenerator, ParseYieldable } from 'yieldparser';
 
 const whitespaceOptional = /^\s*/;
 
@@ -13,20 +13,38 @@ type Repeat = (typeof repeatsChoices)[0 | 1 | 2 | 3 ];
 const repeatingTypeChoices = Object.freeze(['daily', 'weekly', 'monthly', 'yearly'] as const);
 type RepeatType = (typeof repeatingTypeChoices)[0 | 1 | 2 | 3 ];
 
+const monthChoices = Object.freeze(['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'] as const);
+type Month = (typeof monthChoices)[0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11];
+
 function* EveryParser() {
   yield /^every\b/;
   yield whitespaceOptional;
 
-  const interval = yield optional(ParseInt);
-
+  let month: string | undefined = yield optional(...monthChoices);
+  
   yield whitespaceOptional
 
-  const repeats: Repeat = yield repeatsChoices;
-  
-  if (interval)
-    yield /^s/;
+  let interval = yield optional(ParseInt);
+  const ext = yield optional('th', "nd", "rd");
 
-  return { interval, repeats };
+  
+  yield whitespaceOptional
+
+  let repeats: Repeat = yield optional(...repeatsChoices);
+  
+  if (repeats && interval)
+    yield /^s/;
+  
+  let monthDay: number | undefined = undefined;
+  if (ext || !repeats) {
+    monthDay = interval;
+    interval = undefined;
+    if (!month){
+      month = yield optional(...monthChoices);
+    }
+  }  
+  
+  return { monthDay, month, interval, repeats };
 }
 
 const weekdayChoices = Object.freeze(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const);
@@ -132,11 +150,17 @@ function mapRepeat(repeat: Repeat): RepeatType | undefined {
 function* RepeatDateParser() {
   let repeats: RepeatType | undefined  = yield optional(...repeatingTypeChoices);
   let interval: number | undefined = undefined;
+  let monthDay: number | undefined = undefined;
+  let month: string | undefined = undefined;
+  let hasEvery: boolean = false;
 
   if (!repeats) {
     const every: any = yield optional(EveryParser);
     repeats = mapRepeat(every?.repeats);
     interval = every?.interval;
+    monthDay = every?.monthDay;
+    month = every?.month;
+    hasEvery = every !== undefined;
   }
   
   let weekSpan: any;
@@ -145,16 +169,19 @@ function* RepeatDateParser() {
     yield whitespaceOptional;
     weekSpan = yield optional(WeekdaysParser);
     yield whitespaceOptional;
-
+    
     if (weekSpan)
-      repeats = repeats || (weekSpan.repeats ? 'weekly' : undefined);
+      repeats = repeats || (weekSpan.repeats || hasEvery ? 'weekly' : undefined);
   }
 
   const weekdays = repeats === 'weekly' 
     ? weekSpan?.weekdays || new Set([])
     : weekSpan?.weekdays;
 
-  return { repeats, interval, weekdays }; 
+  if (monthDay)
+    repeats = month ? 'yearly': 'monthly';
+
+  return { repeats, interval, monthDay, month, weekdays }; 
 }
 
 function* NaturalDateParser(): ParseGenerator<Result> {  

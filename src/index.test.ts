@@ -39,12 +39,15 @@ describe("parse()", () => {
     ['every 2 days 9:30', { repeats: 'daily', interval: 2, startTime: { hours: 9, minutes: 30 } }],
     ['every month 9:30', { repeats: 'monthly', startTime: { hours: 9, minutes: 30 } }],
     ['every 4 months 9:30', { repeats: 'monthly', interval: 4, startTime: { hours: 9, minutes: 30 } }],
-    // ['every 3rd', { repeats: 'monthly', monthDay: 3 }],
-    // ['every 28th', { repeats: 'monthly', monthDay: 28 }],
-    // ['every 28 November', { repeats: 'yearly', monthDay: 28, month: 'November' }],
-    // ['every November 28', { repeats: 'yearly', monthDay: 28, month: 'November' }],
-    // ['every year', { repeats: 'yearly' }],
+    ['every 3', { repeats: 'monthly', monthDay: 3 }],
+    ['every 3rd', { repeats: 'monthly', monthDay: 3 }],
+    ['every 28th', { repeats: 'monthly', monthDay: 28 }],
+    ['every 28 November', { repeats: 'yearly', monthDay: 28, month: 'november' }],
+    ['every 28th November', { repeats: 'yearly', monthDay: 28, month: 'november' }],
+    ['every November 28', { repeats: 'yearly', monthDay: 28, month: 'november' }],
+    ['every year', { repeats: 'yearly' }],
     ['daily 10:30', { repeats: 'daily', startTime: { hours: 10, minutes: 30 } }],
+    ['monthly 10:30', { repeats: 'monthly', startTime: { hours: 10, minutes: 30 } }],
   ])('%o', (input: string, output) => {
     expect(parse(input)).toEqual(output);
   });
